@@ -1,32 +1,10 @@
-### what is this?
+# VectorDB
 
-This project is an attempt to build a fast and performant vector database.
+A small, dependency-free vector database with an in-memory HNSW index.
 
-### planned features
-
-- [ ] core vector ops
-	- [ ] vector storage (simple in-memory first)
-	- [ ] euclidean distance
-	- [ ] cosine similarity
-
-- [ ] search
-	- [ ] k-nearest neighbor
-	- [x] approximate nearest neighbor
-	- [x] hnsw
-
-- [ ] queries
-	- [ ] simple querying
-	- [ ] filtered querying
-	- [ ] batch querying
-
-- [ ] metadata
-
-- [ ] storage (save/load from disk)
-
-### HNSW quick start
-
-The Python package includes a dependency-free HNSW index with Euclidean and
-cosine distance, deletion, batch insertion, and JSON persistence.
+```shell
+python3 -m pip install -e .
+```
 
 ```python
 from vectordb import HNSWIndex
@@ -36,12 +14,20 @@ index.add("first", [1.0, 0.0, 0.0])
 index.add("second", [0.8, 0.2, 0.0])
 
 neighbors = index.search([1.0, 0.1, 0.0], k=2)
-index.save("vectors.hnsw.json")
+index.save("vectors.json")
 ```
 
-Install the package for development and run the test suite with:
+## Status
 
-```shell
-python3 -m pip install -e .
-python3 -m unittest discover -s tests
-```
+- [x] In-memory vector storage
+- [x] Euclidean distance
+- [x] Cosine distance
+- [x] k-nearest-neighbor search
+- [x] Approximate search with HNSW
+- [x] Simple queries
+- [x] Save and load from disk
+- [ ] Filtered queries
+- [ ] Batch queries
+- [ ] Metadata
+
+Run tests with `python3 -m unittest discover -s tests`.
