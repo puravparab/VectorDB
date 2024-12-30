@@ -1,6 +1,9 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from vectordb.database import VectorDatabase
+from vectordb.filters import all_of, equals, greater_than
 
 
 class VectorDatabaseTests(unittest.TestCase):
@@ -41,6 +44,44 @@ class VectorDatabaseTests(unittest.TestCase):
     def test_rejects_unknown_backend(self):
         with self.assertRaises(ValueError):
             VectorDatabase(2, index="unknown")
+
+    def test_filtered_search(self):
+        database = VectorDatabase(1, index="brute_force")
+        database.add_many(
+            [
+                ("cheap", [0], {"kind": "book", "price": 5}),
+                ("target", [2], {"kind": "book", "price": 20}),
+                ("film", [2.1], {"kind": "film", "price": 25}),
+            ]
+        )
+        where = all_of(equals("kind", "book"), greater_than("price", 10))
+        self.assertEqual(database.search([2.1], k=2, where=where)[0].label, "target")
+
+    def test_batch_search_and_atomic_add(self):
+        database = VectorDatabase(1, index="brute_force")
+        database.add_many([("a", [0], None), ("b", [10], None)])
+        results = database.search_many([[1], [9]], k=1)
+        self.assertEqual([batch[0].label for batch in results], ["a", "b"])
+        with self.assertRaises(ValueError):
+            database.add_many([("temporary", [5], None), ("a", [2], None)])
+        self.assertNotIn("temporary", database)
+
+    def test_save_and_load(self):
+        database = VectorDatabase(
+            2,
+            index="hnsw",
+            index_options={"m": 4, "ef_construction": 20, "seed": 4},
+        )
+        database.add_many(
+            [("a", [0, 0], {"kind": "left"}), ("b", [4, 4], {"kind": "right"})]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "database.json"
+            database.save(path)
+            loaded = VectorDatabase.load(path)
+        self.assertEqual(loaded.index_name, "hnsw")
+        self.assertEqual(loaded.get_metadata("b"), {"kind": "right"})
+        self.assertEqual(loaded.search([4, 4], k=1)[0].label, "b")
 
 
 if __name__ == "__main__":
