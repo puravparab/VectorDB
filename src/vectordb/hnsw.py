@@ -177,6 +177,13 @@ class HNSWIndex:
                 node for node, level in self._levels.items() if level == self._max_level
             )
 
+    def get_vector(self, label: Label) -> Tuple[float, ...]:
+        """Return the stored vector for ``label``."""
+        try:
+            return self._vectors[label]
+        except KeyError:
+            raise KeyError(label) from None
+
     def save(self, path: Union[str, Path]) -> None:
         """Save the complete index as portable JSON.
 
