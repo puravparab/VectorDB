@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import math
 from dataclasses import dataclass
-from typing import Any, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Any, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .brute_force import BruteForceIndex
 from .hnsw import HNSWIndex
@@ -26,6 +29,7 @@ class SearchResult:
 class VectorDatabase:
     """Store vectors and metadata behind a selectable search index."""
 
+    _FORMAT_VERSION = 1
     _INDEXES = {
         "brute_force": BruteForceIndex,
         "hnsw": HNSWIndex,
@@ -56,6 +60,7 @@ class VectorDatabase:
         self.dimensions = dimensions
         self.metric = metric
         self.index_name = index
+        self.index_options = options
         self._metadata: Dict[Label, Dict[str, Any]] = {}
 
     def __len__(self) -> int:
@@ -140,3 +145,50 @@ class VectorDatabase:
         return [
             self.search(vector, k=k, where=where, **search_options) for vector in vectors
         ]
+
+    def save(self, path: Union[str, Path]) -> None:
+        """Persist vectors, metadata, and index configuration as JSON."""
+        records = []
+        for label, metadata in self._metadata.items():
+            if not self._is_json_label(label):
+                raise TypeError("save supports only JSON scalar labels")
+            records.append(
+                {"label": label, "vector": self.get_vector(label), "metadata": metadata}
+            )
+        document = {
+            "format_version": self._FORMAT_VERSION,
+            "dimensions": self.dimensions,
+            "metric": self.metric,
+            "index": self.index_name,
+            "index_options": self.index_options,
+            "records": records,
+        }
+        destination = Path(path)
+        temporary = destination.with_suffix(destination.suffix + ".tmp")
+        temporary.write_text(json.dumps(document, separators=(",", ":")), encoding="utf-8")
+        temporary.replace(destination)
+
+    @classmethod
+    def load(cls, path: Union[str, Path]) -> "VectorDatabase":
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+        if document.get("format_version") != cls._FORMAT_VERSION:
+            raise ValueError("unsupported vector database format")
+        database = cls(
+            document["dimensions"],
+            metric=document["metric"],
+            index=document["index"],
+            index_options=document["index_options"],
+        )
+        database.add_many(
+            (record["label"], record["vector"], record["metadata"])
+            for record in document["records"]
+        )
+        return database
+
+    @staticmethod
+    def _is_json_label(value: object) -> bool:
+        return (
+            value is None
+            or isinstance(value, (str, int, bool))
+            or (isinstance(value, float) and math.isfinite(value))
+        )
