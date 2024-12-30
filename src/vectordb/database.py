@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence
+from typing import Any, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from .brute_force import BruteForceIndex
 from .hnsw import HNSWIndex
@@ -70,8 +70,24 @@ class VectorDatabase:
         vector: Sequence[float],
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> None:
+        record = dict(metadata or {})
         self._index.add(label, vector)
-        self._metadata[label] = dict(metadata or {})
+        self._metadata[label] = record
+
+    def add_many(
+        self,
+        items: Iterable[Tuple[Label, Sequence[float], Optional[Mapping[str, Any]]]],
+    ) -> None:
+        """Add records atomically, rolling back the batch if one is invalid."""
+        added: List[Label] = []
+        try:
+            for label, vector, metadata in items:
+                self.add(label, vector, metadata)
+                added.append(label)
+        except Exception:
+            for label in reversed(added):
+                self.remove(label)
+            raise
 
     def remove(self, label: Label) -> None:
         self._index.remove(label)
@@ -112,3 +128,15 @@ class VectorDatabase:
                 if len(results) == k:
                     break
         return results
+
+    def search_many(
+        self,
+        vectors: Iterable[Sequence[float]],
+        k: int = 10,
+        *,
+        where: Optional[Filter] = None,
+        **search_options: Any,
+    ) -> List[List[SearchResult]]:
+        return [
+            self.search(vector, k=k, where=where, **search_options) for vector in vectors
+        ]
