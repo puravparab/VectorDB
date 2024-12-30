@@ -10,6 +10,7 @@ from .hnsw import HNSWIndex
 from .ivf import IVFFlatIndex
 from .kd_tree import KDTreeIndex
 from .lsh import LSHIndex
+from .filters import Filter
 
 
 Label = Hashable
@@ -89,8 +90,25 @@ class VectorDatabase:
             raise KeyError(label)
         self._metadata[label].update(values)
 
-    def search(self, vector: Sequence[float], k: int = 10, **search_options: Any) -> List[SearchResult]:
-        return [
-            SearchResult(label, score, dict(self._metadata[label]))
-            for label, score in self._index.search(vector, k=k, **search_options)
-        ]
+    def search(
+        self,
+        vector: Sequence[float],
+        k: int = 10,
+        *,
+        where: Optional[Filter] = None,
+        **search_options: Any,
+    ) -> List[SearchResult]:
+        if isinstance(k, bool) or not isinstance(k, int) or k <= 0:
+            raise ValueError("k must be a positive integer")
+        candidate_count = max(k, len(self)) if where is not None else k
+        if self.index_name == "hnsw":
+            search_options.setdefault("ef", max(50, candidate_count))
+        candidates = self._index.search(vector, k=candidate_count, **search_options)
+        results = []
+        for label, score in candidates:
+            metadata = self._metadata[label]
+            if where is None or where(metadata):
+                results.append(SearchResult(label, score, dict(metadata)))
+                if len(results) == k:
+                    break
+        return results
