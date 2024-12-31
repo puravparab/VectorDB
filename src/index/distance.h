@@ -3,7 +3,14 @@
 
 #include "../vector/vector.h"
 
+#include <string>
+
 enum class DistanceMetric { Euclidean, Cosine };
+
+struct Neighbor {
+    std::string label;
+    float distance;
+};
 
 inline float vector_distance(
     const Vector& left,

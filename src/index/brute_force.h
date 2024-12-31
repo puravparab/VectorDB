@@ -9,11 +9,6 @@
 #include <utility>
 #include <vector>
 
-struct Neighbor {
-    std::string label;
-    float distance;
-};
-
 class BruteForceIndex {
 public:
     explicit BruteForceIndex(
