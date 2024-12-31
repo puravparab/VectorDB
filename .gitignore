@@ -14,6 +14,11 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
 
 ### macOS ###
 .DS_Store
