@@ -1,33 +1,31 @@
 # VectorDB
 
-A small, dependency-free vector database with an in-memory HNSW index.
+A small, dependency-free vector database in Python and C++.
+
+Indexes: brute force, KD-tree, LSH, IVF-flat, and HNSW.
 
 ```shell
 python3 -m pip install -e .
 ```
 
 ```python
-from vectordb import HNSWIndex
+from vectordb import VectorDatabase, equals
 
-index = HNSWIndex(dimensions=3, metric="cosine", seed=42)
-index.add("first", [1.0, 0.0, 0.0])
-index.add("second", [0.8, 0.2, 0.0])
+db = VectorDatabase(3, index="hnsw", index_options={"seed": 42})
+db.add("first", [1, 0, 0], {"kind": "example"})
+db.add("second", [0.8, 0.2, 0], {"kind": "example"})
 
-neighbors = index.search([1.0, 0.1, 0.0], k=2)
-index.save("vectors.json")
+results = db.search([1, 0.1, 0], k=2, where=equals("kind", "example"))
+db.save("vectors.json")
 ```
 
-## Status
+Features include Euclidean and cosine distance, metadata filters, batch queries,
+deletion, and JSON persistence.
 
-- [x] In-memory vector storage
-- [x] Euclidean distance
-- [x] Cosine distance
-- [x] k-nearest-neighbor search
-- [x] Approximate search with HNSW
-- [x] Simple queries
-- [x] Save and load from disk
-- [ ] Filtered queries
-- [ ] Batch queries
-- [ ] Metadata
+```shell
+python3 -m unittest discover -s tests
 
-Run tests with `python3 -m unittest discover -s tests`.
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build
+```
